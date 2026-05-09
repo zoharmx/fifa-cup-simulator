@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Mundial FIFA 26</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: white; }
+        .group-card { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #334155; }
+        .match-row { transition: all 0.2s ease; }
+        .match-row:hover { background-color: rgba(255, 255, 255, 0.05); }
+        .score-input { background: #334155; border: 1px solid #475569; color: white; text-align: center; }
+        .score-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
+        .btn-primary { background: linear-gradient(to right, #2563eb, #3b82f6); transition: transform 0.1s; }
+        .btn-primary:active { transform: scale(0.98); }
+        .flag-icon { width: 24px; height: 16px; object-fit: cover; border-radius: 2px; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        .phase-container { display: none; }
+        .phase-container.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .bracket { display: flex; flex-direction: row; overflow-x: auto; padding-bottom: 20px; gap: 2rem;}
+        .round { display: flex; flex-direction: column; justify-content: space-around; width: 220px; flex-shrink: 0;}
+        .matchup { background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; margin-bottom: 1rem; position: relative; padding: 0.5rem;}
+        .matchup::after { content: ''; position: absolute; right: -1rem; top: 50%; width: 1rem; height: 2px; background: #475569; z-index: -1; }
+        .round:last-child .matchup::after { display: none; }
+        .team-line { display: flex; justify-content: space-between; align-items: center; padding: 0.25rem 0; }
+        .team-line input { width: 30px; height: 24px; font-size: 0.875rem; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <header class="max-w-7xl mx-auto mb-8 text-center">
+        <h1 class="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-4">
+            Mundial FIFA 2026
+        </h1>
+        <p class="text-gray-400 mb-4">Simulador Interactivo - 48 Selecciones</p>
+
+        <!-- Barra de sesión -->
+        <div id="tournament-bar" class="bg-slate-800 border border-slate-700 rounded-xl p-3 mb-5 flex flex-wrap justify-between items-center gap-3 text-sm">
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="text-gray-400 shrink-0">🔗 Tu torneo:</span>
+                <code id="tournament-url"
+                      onclick="copyTournamentUrl()"
+                      title="Clic para copiar enlace"
+                      class="text-blue-400 text-xs bg-slate-900 px-2 py-1 rounded cursor-pointer hover:bg-slate-700 truncate max-w-[200px] sm:max-w-[380px]">
+                    Iniciando sesión...
+                </code>
+                <button onclick="copyTournamentUrl()" class="text-gray-500 hover:text-blue-400 transition-colors shrink-0" title="Copiar enlace">📋</button>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+                <span id="save-indicator" class="text-green-400 text-xs hidden">✓ Guardado</span>
+                <span id="save-error" class="text-red-400 text-xs hidden">⚠ Error al guardar</span>
+                <span id="save-time" class="text-gray-500 text-xs hidden"></span>
+                <button onclick="newTournament()" class="px-3 py-1 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-xs text-white transition-colors">
+                    + Nueva Partida
+                </button>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap justify-center gap-2 md:gap-4 mb-4">
+            <button onclick="showPhase('grupos')" id="tab-grupos" class="px-4 py-2 rounded-full font-semibold bg-blue-600 text-white transition-colors hover:bg-blue-500">Fase de Grupos</button>
+            <button onclick="showPhase('dieciseisavos')" id="tab-dieciseisavos" class="px-4 py-2 rounded-full font-semibold bg-gray-700 text-gray-300 transition-colors hover:bg-gray-600 disabled:opacity-50" disabled>16avos</button>
+            <button onclick="showPhase('octavos')" id="tab-octavos" class="px-4 py-2 rounded-full font-semibold bg-gray-700 text-gray-300 transition-colors hover:bg-gray-600 disabled:opacity-50" disabled>Octavos</button>
+            <button onclick="showPhase('cuartos')" id="tab-cuartos" class="px-4 py-2 rounded-full font-semibold bg-gray-700 text-gray-300 transition-colors hover:bg-gray-600 disabled:opacity-50" disabled>Cuartos</button>
+            <button onclick="showPhase('semis')" id="tab-semis" class="px-4 py-2 rounded-full font-semibold bg-gray-700 text-gray-300 transition-colors hover:bg-gray-600 disabled:opacity-50" disabled>Semis</button>
+            <button onclick="showPhase('final')" id="tab-final" class="px-4 py-2 rounded-full font-semibold bg-gray-700 text-gray-300 transition-colors hover:bg-gray-600 disabled:opacity-50" disabled>Finales</button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto">
+        <!-- FASE DE GRUPOS -->
+        <section id="phase-grupos" class="phase-container active">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Fase de Grupos</h2>
+                <button onclick="randomizeGroupScores()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                    🎲 Simular al azar
+                </button>
+            </div>
+
+            <div id="groups-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+
+            <div class="mt-8 text-center">
+                <button onclick="advanceToKnockout()" class="btn-primary px-8 py-4 rounded-xl text-lg font-bold shadow-lg hover:shadow-blue-500/50">
+                    Avanzar a Dieciseisavos ➔
+                </button>
+                <p id="group-error" class="text-red-400 mt-2 text-sm hidden">Completa todos los resultados o usa "Simular al azar".</p>
+            </div>
+        </section>
+
+        <!-- DIECISEISAVOS -->
+        <section id="phase-dieciseisavos" class="phase-container">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Dieciseisavos de Final</h2>
+                <button onclick="randomizeKnockoutScores('dieciseisavos')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">🎲 Simular</button>
+            </div>
+            <div class="bracket" id="bracket-dieciseisavos"></div>
+            <div class="mt-8 text-center">
+                <button onclick="advancePhase('octavos')" class="btn-primary px-8 py-3 rounded-xl font-bold">Avanzar a Octavos ➔</button>
+                <p id="error-dieciseisavos" class="text-red-400 mt-2 text-sm hidden">Completa todos los partidos (sin empates).</p>
+            </div>
+        </section>
+
+        <!-- OCTAVOS -->
+        <section id="phase-octavos" class="phase-container">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Octavos de Final</h2>
+                <button onclick="randomizeKnockoutScores('octavos')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">🎲 Simular</button>
+            </div>
+            <div class="bracket" id="bracket-octavos"></div>
+            <div class="mt-8 text-center">
+                <button onclick="advancePhase('cuartos')" class="btn-primary px-8 py-3 rounded-xl font-bold">Avanzar a Cuartos ➔</button>
+                <p id="error-octavos" class="text-red-400 mt-2 text-sm hidden">Completa todos los partidos (sin empates).</p>
+            </div>
+        </section>
+
+        <!-- CUARTOS -->
+        <section id="phase-cuartos" class="phase-container">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Cuartos de Final</h2>
+                <button onclick="randomizeKnockoutScores('cuartos')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">🎲 Simular</button>
+            </div>
+            <div class="bracket" id="bracket-cuartos"></div>
+            <div class="mt-8 text-center">
+                <button onclick="advancePhase('semis')" class="btn-primary px-8 py-3 rounded-xl font-bold">Avanzar a Semifinales ➔</button>
+                <p id="error-cuartos" class="text-red-400 mt-2 text-sm hidden">Completa todos los partidos (sin empates).</p>
+            </div>
+        </section>
+
+        <!-- SEMIS -->
+        <section id="phase-semis" class="phase-container">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Semifinales</h2>
+                <button onclick="randomizeKnockoutScores('semis')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">🎲 Simular</button>
+            </div>
+            <div class="bracket" id="bracket-semis" style="justify-content: center;"></div>
+            <div class="mt-8 text-center">
+                <button onclick="setupFinals()" class="btn-primary px-8 py-3 rounded-xl font-bold">Ir a las Finales ➔</button>
+                <p id="error-semis" class="text-red-400 mt-2 text-sm hidden">Completa todos los partidos (sin empates).</p>
+            </div>
+        </section>
+
+        <!-- FINALES -->
+        <section id="phase-final" class="phase-container">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-yellow-400">Gran Final y Tercer Puesto</h2>
+                <button onclick="randomizeKnockoutScores('final')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">🎲 Simular</button>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-center gap-8 items-center" id="bracket-final">
+                <div class="w-full max-w-sm">
+                    <h3 class="text-center text-gray-400 mb-2 font-semibold">Tercer Lugar</h3>
+                    <div id="tercer-lugar-match" class="matchup border-yellow-700 bg-gray-900"></div>
+                </div>
+                <div class="w-full max-w-md">
+                    <h3 class="text-center text-yellow-400 mb-2 font-bold text-xl">🏆 Gran Final</h3>
+                    <div id="final-match" class="matchup border-yellow-400 bg-gray-900 shadow-[0_0_15px_rgba(250,204,21,0.3)] p-6"></div>
+                </div>
+            </div>
+
+            <div class="mt-12 text-center">
+                <button onclick="coronateChampion()" class="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 px-10 py-4 rounded-xl font-bold text-xl shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-transform hover:scale-105">
+                    Coronar Campeón 👑
+                </button>
+                <p id="error-final" class="text-red-400 mt-2 text-sm hidden">Completa todos los partidos (sin empates).</p>
+            </div>
+
+            <div id="champion-display" class="hidden mt-12 text-center pb-20">
+                <h2 class="text-3xl font-bold mb-4">¡EL CAMPEÓN DEL MUNDO!</h2>
+                <div class="inline-block p-8 rounded-2xl bg-gradient-to-b from-yellow-900/50 to-gray-900 border-2 border-yellow-500">
+                    <img id="champion-flag" src="" alt="Bandera" class="w-32 h-20 object-cover mx-auto mb-4 rounded-md shadow-lg">
+                    <h3 id="champion-name" class="text-4xl font-extrabold text-yellow-400"></h3>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const teamsData = [
+            { id: 'A1', name: 'México', flag: 'mx', group: 'A' }, { id: 'A2', name: 'Sudáfrica', flag: 'za', group: 'A' }, { id: 'A3', name: 'Corea del Sur', flag: 'kr', group: 'A' }, { id: 'A4', name: 'Chequia', flag: 'cz', group: 'A' },
+            { id: 'B1', name: 'Canadá', flag: 'ca', group: 'B' }, { id: 'B2', name: 'Bosnia y Herz.', flag: 'ba', group: 'B' }, { id: 'B3', name: 'Catar', flag: 'qa', group: 'B' }, { id: 'B4', name: 'Suiza', flag: 'ch', group: 'B' },
+            { id: 'C1', name: 'Brasil', flag: 'br', group: 'C' }, { id: 'C2', name: 'Marruecos', flag: 'ma', group: 'C' }, { id: 'C3', name: 'Haití', flag: 'ht', group: 'C' }, { id: 'C4', name: 'Escocia', flag: 'gb-sct', group: 'C' },
+            { id: 'D1', name: 'Estados Unidos', flag: 'us', group: 'D' }, { id: 'D2', name: 'Paraguay', flag: 'py', group: 'D' }, { id: 'D3', name: 'Australia', flag: 'au', group: 'D' }, { id: 'D4', name: 'Turquía', flag: 'tr', group: 'D' },
+            { id: 'E1', name: 'Alemania', flag: 'de', group: 'E' }, { id: 'E2', name: 'Curazao', flag: 'cw', group: 'E' }, { id: 'E3', name: 'Costa de Marfil', flag: 'ci', group: 'E' }, { id: 'E4', name: 'Ecuador', flag: 'ec', group: 'E' },
+            { id: 'F1', name: 'Países Bajos', flag: 'nl', group: 'F' }, { id: 'F2', name: 'Japón', flag: 'jp', group: 'F' }, { id: 'F3', name: 'Suecia', flag: 'se', group: 'F' }, { id: 'F4', name: 'Túnez', flag: 'tn', group: 'F' },
+            { id: 'G1', name: 'Bélgica', flag: 'be', group: 'G' }, { id: 'G2', name: 'Egipto', flag: 'eg', group: 'G' }, { id: 'G3', name: 'Irán', flag: 'ir', group: 'G' }, { id: 'G4', name: 'Nueva Zelanda', flag: 'nz', group: 'G' },
+            { id: 'H1', name: 'España', flag: 'es', group: 'H' }, { id: 'H2', name: 'Cabo Verde', flag: 'cv', group: 'H' }, { id: 'H3', name: 'Arabia Saudita', flag: 'sa', group: 'H' }, { id: 'H4', name: 'Uruguay', flag: 'uy', group: 'H' },
+            { id: 'I1', name: 'Francia', flag: 'fr', group: 'I' }, { id: 'I2', name: 'Senegal', flag: 'sn', group: 'I' }, { id: 'I3', name: 'Irak', flag: 'iq', group: 'I' }, { id: 'I4', name: 'Noruega', flag: 'no', group: 'I' },
+            { id: 'J1', name: 'Argentina', flag: 'ar', group: 'J' }, { id: 'J2', name: 'Argelia', flag: 'dz', group: 'J' }, { id: 'J3', name: 'Austria', flag: 'at', group: 'J' }, { id: 'J4', name: 'Jordania', flag: 'jo', group: 'J' },
+            { id: 'K1', name: 'Portugal', flag: 'pt', group: 'K' }, { id: 'K2', name: 'RD Congo', flag: 'cd', group: 'K' }, { id: 'K3', name: 'Uzbekistán', flag: 'uz', group: 'K' }, { id: 'K4', name: 'Colombia', flag: 'co', group: 'K' },
+            { id: 'L1', name: 'Inglaterra', flag: 'gb-eng', group: 'L' }, { id: 'L2', name: 'Croacia', flag: 'hr', group: 'L' }, { id: 'L3', name: 'Ghana', flag: 'gh', group: 'L' }, { id: 'L4', name: 'Panamá', flag: 'pa', group: 'L' }
+        ];
+
+        let state = {
+            matches: {},
+            knockout: { dieciseisavos: [], octavos: [], cuartos: [], semis: [], final: [], tercer: [] },
+            advancingTeams: [],
+            groupStandings: {},
+            currentPhase: 'grupos',
+            enabledTabs: ['grupos']
+        };
+
+        const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+
+        // ==========================================
+        // PERSISTENCIA — Supabase via API serverless
+        // ==========================================
+
+        let tournamentId = null;
+        let saveTimeout = null;
+        let isSaving = false;
+
+        async function initTournament() {
+            const params = new URLSearchParams(window.location.search);
+            tournamentId = params.get('t');
+
+            if (tournamentId) {
+                const loaded = await loadTournamentState();
+                if (!loaded) {
+                    // ID inválido — crear uno nuevo
+                    await createTournament();
+                    initGroupPhase();
+                }
+            } else {
+                await createTournament();
+                initGroupPhase();
+            }
+            updateTournamentBar();
+        }
+
+        async function createTournament() {
+            try {
+                const res = await fetch('/api/tournament', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ state: {} })
+                });
+                if (!res.ok) throw new Error('API error ' + res.status);
+                const data = await res.json();
+                tournamentId = data.id;
+                const newUrl = `${location.origin}${location.pathname}?t=${tournamentId}`;
+                history.replaceState({}, '', newUrl);
+            } catch (e) {
+                console.error('Error creando torneo:', e);
+                // Fallback: funciona sin persistencia
+            }
+        }
+
+        async function loadTournamentState() {
+            try {
+                const res = await fetch(`/api/tournament/${tournamentId}`);
+                if (!res.ok) return false;
+
+                const data = await res.json();
+                if (!data.state || Object.keys(data.state).length === 0) {
+                    initGroupPhase();
+                    return true;
+                }
+
+                // Restaurar estado
+                if (data.state.matches) state.matches = data.state.matches;
+                if (data.state.knockout) {
+                    Object.keys(data.state.knockout).forEach(k => {
+                        state.knockout[k] = data.state.knockout[k];
+                    });
+                }
+                if (data.state.advancingTeams) state.advancingTeams = data.state.advancingTeams;
+                if (data.state.groupStandings) state.groupStandings = data.state.groupStandings;
+                if (data.state.currentPhase) state.currentPhase = data.state.currentPhase;
+                if (data.state.enabledTabs) state.enabledTabs = data.state.enabledTabs;
+
+                restoreUI();
+                return true;
+            } catch (e) {
+                console.error('Error cargando torneo:', e);
+                return false;
+            }
+        }
+
+        function scheduleSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(saveState, 900);
+        }
+
+        async function saveState() {
+            if (!tournamentId || isSaving) return;
+            isSaving = true;
+            try {
+                const res = await fetch(`/api/tournament/${tournamentId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ state })
+                });
+                if (!res.ok) throw new Error('Save failed');
+                showSavedIndicator(true);
+            } catch (e) {
+                showSavedIndicator(false);
+            } finally {
+                isSaving = false;
+            }
+        }
+
+        function showSavedIndicator(ok) {
+            const okEl = document.getElementById('save-indicator');
+            const errEl = document.getElementById('save-error');
+            const timeEl = document.getElementById('save-time');
+            if (ok) {
+                okEl.classList.remove('hidden');
+                errEl.classList.add('hidden');
+                setTimeout(() => okEl.classList.add('hidden'), 2000);
+                timeEl.textContent = `Último guardado: ${new Date().toLocaleTimeString()}`;
+                timeEl.classList.remove('hidden');
+            } else {
+                errEl.classList.remove('hidden');
+                setTimeout(() => errEl.classList.add('hidden'), 3000);
+            }
+        }
+
+        function updateTournamentBar() {
+            const urlEl = document.getElementById('tournament-url');
+            if (urlEl && tournamentId) {
+                const url = `${location.origin}${location.pathname}?t=${tournamentId}`;
+                urlEl.textContent = url;
+            } else if (urlEl) {
+                urlEl.textContent = 'Sin conexión — los datos no se guardarán';
+                urlEl.classList.replace('text-blue-400', 'text-yellow-400');
+            }
+        }
+
+        function copyTournamentUrl() {
+            if (!tournamentId) return;
+            const url = `${location.origin}${location.pathname}?t=${tournamentId}`;
+            navigator.clipboard.writeText(url).then(() => {
+                const el = document.getElementById('tournament-url');
+                const orig = el.textContent;
+                el.textContent = '¡Enlace copiado!';
+                setTimeout(() => { el.textContent = orig; }, 1500);
+            });
+        }
+
+        function newTournament() {
+            if (confirm('¿Abrir una nueva partida en blanco? Se abrirá en una nueva pestaña.')) {
+                window.open(location.pathname, '_blank');
+            }
+        }
+
+        function restoreUI() {
+            initGroupPhase();
+
+            // Restaurar marcadores de grupos
+            Object.keys(state.matches).forEach(matchId => {
+                const score = state.matches[matchId];
+                const inputs = document.querySelectorAll(`input[data-match="${matchId}"]`);
+                if (inputs.length === 2) {
+                    inputs[0].value = score.t1;
+                    inputs[1].value = score.t2;
+                }
+            });
+            groups.forEach(g => updateGroupTable(g));
+
+            // Habilitar pestañas guardadas
+            (state.enabledTabs || []).forEach(tab => {
+                const el = document.getElementById(`tab-${tab}`);
+                if (el) el.disabled = false;
+            });
+
+            // Re-renderizar fases de eliminatorias
+            ['dieciseisavos', 'octavos', 'cuartos', 'semis'].forEach(phase => {
+                if (state.knockout[phase] && state.knockout[phase].length > 0) {
+                    renderKnockoutPhase(phase, state.knockout[phase]);
+                }
+            });
+            if (state.knockout.final && state.knockout.final.length > 0) {
+                renderKnockoutPhase('final', null, true);
+            }
+
+            showPhase(state.currentPhase || 'grupos');
+        }
+
+        // ==========================================
+        // UI & LÓGICA DEL SIMULADOR
+        // ==========================================
+
+        function getFlagUrl(code) {
+            return `https://flagcdn.com/w40/${code}.png`;
+        }
+
+        function getTeam(id) {
+            return teamsData.find(t => t.id === id);
+        }
+
+        function showPhase(phase) {
+            document.querySelectorAll('.phase-container').forEach(el => el.classList.remove('active'));
+            document.getElementById(`phase-${phase}`).classList.add('active');
+
+            document.querySelectorAll('header button[id^="tab-"]').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-gray-700', 'text-gray-300');
+            });
+            const activeBtn = document.getElementById(`tab-${phase}`);
+            activeBtn.classList.remove('bg-gray-700', 'text-gray-300');
+            activeBtn.classList.add('bg-blue-600', 'text-white');
+
+            state.currentPhase = phase;
+            scheduleSave();
+        }
+
+        function enableTab(phase) {
+            document.getElementById(`tab-${phase}`).disabled = false;
+            if (!state.enabledTabs.includes(phase)) state.enabledTabs.push(phase);
+        }
+
+        function initGroupPhase() {
+            const container = document.getElementById('groups-container');
+            container.innerHTML = '';
+
+            groups.forEach(g => {
+                const groupTeams = teamsData.filter(t => t.group === g);
+                const card = document.createElement('div');
+                card.className = 'group-card rounded-xl p-4 shadow-lg';
+
+                const matchups = [
+                    [groupTeams[0], groupTeams[1]], [groupTeams[2], groupTeams[3]],
+                    [groupTeams[0], groupTeams[2]], [groupTeams[3], groupTeams[1]],
+                    [groupTeams[3], groupTeams[0]], [groupTeams[1], groupTeams[2]]
+                ];
+
+                let matchesHtml = '';
+                matchups.forEach(m => {
+                    const matchId = `${m[0].id}-${m[1].id}`;
+                    matchesHtml += `
+                        <div class="match-row flex items-center justify-between py-2 text-sm rounded px-1">
+                            <div class="flex items-center w-1/3 justify-end gap-2">
+                                <span class="truncate">${m[0].name}</span>
+                                <img src="${getFlagUrl(m[0].flag)}" class="flag-icon" title="${m[0].id}">
+                            </div>
+                            <div class="flex items-center justify-center gap-1">
+                                <input type="number" min="0" class="score-input w-8 rounded" data-match="${matchId}" data-team="1" onchange="updateGroupMatch('${matchId}')">
+                                <span class="text-gray-500">-</span>
+                                <input type="number" min="0" class="score-input w-8 rounded" data-match="${matchId}" data-team="2" onchange="updateGroupMatch('${matchId}')">
+                            </div>
+                            <div class="flex items-center w-1/3 justify-start gap-2">
+                                <img src="${getFlagUrl(m[1].flag)}" class="flag-icon" title="${m[1].id}">
+                                <span class="truncate">${m[1].name}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <h3 class="text-xl font-bold mb-3 text-center text-blue-400 border-b border-gray-700 pb-2">Grupo ${g}</h3>
+                    <div class="mb-4">${matchesHtml}</div>
+                    <table class="w-full text-xs text-center border-collapse">
+                        <thead><tr class="text-gray-400 border-b border-gray-700"><th class="text-left py-1">Equipo</th><th>Pts</th><th>GF</th><th>GC</th><th>DG</th></tr></thead>
+                        <tbody id="table-${g}"></tbody>
+                    </table>
+                `;
+                container.appendChild(card);
+                updateGroupTable(g);
+            });
+        }
+
+        function updateGroupMatch(matchId) {
+            const inputs = document.querySelectorAll(`input[data-match="${matchId}"]`);
+            const v1 = inputs[0].value;
+            const v2 = inputs[1].value;
+
+            if (v1 !== '' && v2 !== '') {
+                state.matches[matchId] = { t1: parseInt(v1), t2: parseInt(v2) };
+            } else {
+                delete state.matches[matchId];
+            }
+
+            const team1Id = matchId.split('-')[0];
+            const group = getTeam(team1Id).group;
+            updateGroupTable(group);
+            scheduleSave();
+        }
+
+        function randomizeGroupScores() {
+            document.querySelectorAll('#phase-grupos .score-input').forEach(input => {
+                input.value = Math.floor(Math.random() * 4);
+                input.dispatchEvent(new Event('change'));
+            });
+            document.getElementById('group-error').classList.add('hidden');
+        }
+
+        function calculateStandings(group) {
+            const groupTeams = teamsData.filter(t => t.group === group).map(t => ({
+                ...t, pts: 0, gf: 0, gc: 0, dg: 0, matches: 0
+            }));
+
+            Object.keys(state.matches).forEach(matchId => {
+                const ids = matchId.split('-');
+                const t1 = groupTeams.find(t => t.id === ids[0]);
+                const t2 = groupTeams.find(t => t.id === ids[1]);
+                if (t1 && t2) {
+                    const score = state.matches[matchId];
+                    t1.matches++; t2.matches++;
+                    t1.gf += score.t1; t1.gc += score.t2;
+                    t2.gf += score.t2; t2.gc += score.t1;
+                    if (score.t1 > score.t2) { t1.pts += 3; }
+                    else if (score.t1 < score.t2) { t2.pts += 3; }
+                    else { t1.pts += 1; t2.pts += 1; }
+                }
+            });
+
+            groupTeams.forEach(t => t.dg = t.gf - t.gc);
+            groupTeams.sort((a, b) => {
+                if (b.pts !== a.pts) return b.pts - a.pts;
+                if (b.dg !== a.dg) return b.dg - a.dg;
+                return b.gf - a.gf;
+            });
+            return groupTeams;
+        }
+
+        function updateGroupTable(group) {
+            const standings = calculateStandings(group);
+            state.groupStandings[group] = standings;
+
+            const tbody = document.getElementById(`table-${group}`);
+            let html = '';
+            standings.forEach((t, i) => {
+                const rowClass = i < 2 ? 'bg-green-900/30' : (i === 2 ? 'bg-yellow-900/30' : 'text-gray-500');
+                html += `
+                    <tr class="${rowClass} border-b border-gray-800 last:border-0">
+                        <td class="text-left py-1 flex items-center gap-1 font-semibold">
+                            <span class="w-3">${i+1}.</span>
+                            <img src="${getFlagUrl(t.flag)}" class="w-4 h-3"> ${t.name}
+                        </td>
+                        <td class="font-bold">${t.pts}</td>
+                        <td>${t.gf}</td>
+                        <td>${t.gc}</td>
+                        <td>${t.dg > 0 ? '+'+t.dg : t.dg}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function advanceToKnockout() {
+            if (Object.keys(state.matches).length < 72) {
+                document.getElementById('group-error').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('group-error').classList.add('hidden');
+
+            let qualified = [];
+            let thirds = [];
+
+            groups.forEach(g => {
+                const standings = state.groupStandings[g];
+                qualified.push(standings[0]);
+                qualified.push(standings[1]);
+                thirds.push(standings[2]);
+            });
+
+            thirds.sort((a, b) => {
+                if (b.pts !== a.pts) return b.pts - a.pts;
+                if (b.dg !== a.dg) return b.dg - a.dg;
+                return b.gf - a.gf;
+            });
+
+            const bestThirds = thirds.slice(0, 8);
+            qualified = [...qualified, ...bestThirds];
+            state.advancingTeams = qualified;
+
+            generateRoundOf32(qualified, bestThirds);
+            enableTab('dieciseisavos');
+            showPhase('dieciseisavos');
+            scheduleSave();
+        }
+
+        function generateRoundOf32(allQual, bestThirds) {
+            const firsts = groups.map(g => state.groupStandings[g][0]);
+            const seconds = groups.map(g => state.groupStandings[g][1]);
+
+            let matches = [];
+            let f = [...firsts];
+            let s = [...seconds];
+            let t = [...bestThirds];
+
+            for (let i = 0; i < 8; i++) {
+                matches.push({ id: `R32-${i}`, t1: f.pop(), t2: t.pop(), score1: null, score2: null });
+            }
+            for (let i = 8; i < 12; i++) {
+                matches.push({ id: `R32-${i}`, t1: f.pop(), t2: s.pop(), score1: null, score2: null });
+            }
+            for (let i = 12; i < 16; i++) {
+                matches.push({ id: `R32-${i}`, t1: s.pop(), t2: s.pop(), score1: null, score2: null });
+            }
+
+            state.knockout.dieciseisavos = matches;
+            renderKnockoutPhase('dieciseisavos', matches);
+        }
+
+        function renderKnockoutPhase(phaseName, matches, isFinal = false) {
+            const container = document.getElementById(`bracket-${phaseName}`);
+            if (!container) return;
+
+            if (!isFinal) {
+                container.innerHTML = '';
+                const column = document.createElement('div');
+                column.className = 'round mx-auto';
+                matches.forEach(m => { column.innerHTML += createMatchupHTML(m, phaseName); });
+                container.appendChild(column);
+            } else {
+                document.getElementById('tercer-lugar-match').innerHTML = createMatchupHTML(state.knockout.tercer[0], 'final', true);
+                document.getElementById('final-match').innerHTML = createMatchupHTML(state.knockout.final[0], 'final', true);
+            }
+        }
+
+        function createMatchupHTML(m, phase, hideBorder = false) {
+            return `
+                <div class="matchup ${hideBorder ? 'border-0 bg-transparent after:hidden p-0' : ''}">
+                    <div class="team-line">
+                        <div class="flex items-center gap-2">
+                            <img src="${getFlagUrl(m.t1.flag)}" class="flag-icon">
+                            <span class="text-sm font-semibold truncate w-24">${m.t1.name}</span>
+                        </div>
+                        <input type="number" min="0" class="score-input rounded bg-gray-800" data-k-match="${m.id}" data-t="1" onchange="updateKScore('${phase}', '${m.id}')" value="${m.score1 !== null ? m.score1 : ''}">
+                    </div>
+                    <div class="team-line border-t border-gray-700 mt-1 pt-1">
+                        <div class="flex items-center gap-2">
+                            <img src="${getFlagUrl(m.t2.flag)}" class="flag-icon">
+                            <span class="text-sm font-semibold truncate w-24">${m.t2.name}</span>
+                        </div>
+                        <input type="number" min="0" class="score-input rounded bg-gray-800" data-k-match="${m.id}" data-t="2" onchange="updateKScore('${phase}', '${m.id}')" value="${m.score2 !== null ? m.score2 : ''}">
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateKScore(phase, matchId) {
+            const inputs = document.querySelectorAll(`input[data-k-match="${matchId}"]`);
+            const v1 = inputs[0].value;
+            const v2 = inputs[1].value;
+
+            const phaseArray = phase === 'final'
+                ? [...state.knockout.final, ...state.knockout.tercer]
+                : state.knockout[phase];
+            const match = phaseArray.find(m => m.id === matchId);
+
+            if (match) {
+                match.score1 = v1 !== '' ? parseInt(v1) : null;
+                match.score2 = v2 !== '' ? parseInt(v2) : null;
+            }
+            scheduleSave();
+        }
+
+        function randomizeKnockoutScores(phase) {
+            document.querySelectorAll(`#phase-${phase} .score-input`).forEach(input => {
+                input.value = Math.floor(Math.random() * 5);
+            });
+
+            const phaseMatches = phase === 'final'
+                ? [...state.knockout.final, ...state.knockout.tercer]
+                : state.knockout[phase];
+
+            phaseMatches.forEach(m => {
+                const inputs = document.querySelectorAll(`input[data-k-match="${m.id}"]`);
+                let s1 = parseInt(inputs[0].value);
+                let s2 = parseInt(inputs[1].value);
+                if (s1 === s2) { s1 += 1; inputs[0].value = s1; }
+                m.score1 = s1;
+                m.score2 = s2;
+            });
+
+            document.getElementById(`error-${phase}`).classList.add('hidden');
+            scheduleSave();
+        }
+
+        function advancePhase(nextPhase) {
+            const prevPhaseMap = { 'octavos': 'dieciseisavos', 'cuartos': 'octavos', 'semis': 'cuartos' };
+            const currentPhase = prevPhaseMap[nextPhase];
+            const matches = state.knockout[currentPhase];
+
+            let isValid = true;
+            for (let m of matches) {
+                if (m.score1 === null || m.score2 === null || m.score1 === m.score2) { isValid = false; break; }
+            }
+
+            if (!isValid) {
+                document.getElementById(`error-${currentPhase}`).classList.remove('hidden');
+                return;
+            }
+            document.getElementById(`error-${currentPhase}`).classList.add('hidden');
+
+            const winners = matches.map(m => m.score1 > m.score2 ? m.t1 : m.t2);
+            const nextMatches = [];
+            for (let i = 0; i < winners.length; i += 2) {
+                nextMatches.push({ id: `${nextPhase}-${i/2}`, t1: winners[i], t2: winners[i+1], score1: null, score2: null });
+            }
+
+            state.knockout[nextPhase] = nextMatches;
+            renderKnockoutPhase(nextPhase, nextMatches);
+            enableTab(nextPhase);
+            showPhase(nextPhase);
+            scheduleSave();
+        }
+
+        function setupFinals() {
+            const semisMatches = state.knockout.semis;
+            let isValid = true;
+            for (let m of semisMatches) {
+                if (m.score1 === null || m.score2 === null || m.score1 === m.score2) { isValid = false; break; }
+            }
+            if (!isValid) { document.getElementById('error-semis').classList.remove('hidden'); return; }
+            document.getElementById('error-semis').classList.add('hidden');
+
+            const finalists = [];
+            const losers = [];
+            semisMatches.forEach(m => {
+                if (m.score1 > m.score2) { finalists.push(m.t1); losers.push(m.t2); }
+                else { finalists.push(m.t2); losers.push(m.t1); }
+            });
+
+            state.knockout.final = [{ id: 'FINAL-1', t1: finalists[0], t2: finalists[1], score1: null, score2: null }];
+            state.knockout.tercer = [{ id: 'THIRD-1', t1: losers[0], t2: losers[1], score1: null, score2: null }];
+
+            renderKnockoutPhase('final', null, true);
+            enableTab('final');
+            showPhase('final');
+            scheduleSave();
+        }
+
+        function coronateChampion() {
+            const finalMatch = state.knockout.final[0];
+            const tMatch = state.knockout.tercer[0];
+
+            if (finalMatch.score1 === null || finalMatch.score2 === null || finalMatch.score1 === finalMatch.score2 ||
+                tMatch.score1 === null || tMatch.score2 === null || tMatch.score1 === tMatch.score2) {
+                document.getElementById('error-final').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('error-final').classList.add('hidden');
+
+            const champion = finalMatch.score1 > finalMatch.score2 ? finalMatch.t1 : finalMatch.t2;
+            document.getElementById('champion-name').innerText = champion.name;
+            document.getElementById('champion-flag').src = getFlagUrl(champion.flag);
+
+            const display = document.getElementById('champion-display');
+            display.classList.remove('hidden');
+            display.scrollIntoView({ behavior: 'smooth' });
+            scheduleSave();
+        }
+
+        window.onload = initTournament;
+    </script>
+</body>
+</html>

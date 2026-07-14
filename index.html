@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador Mundial FIFA 26</title>
+    <title>Simulador Mundial de Clubes FIFA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -15,7 +15,7 @@
         .score-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
         .btn-primary { background: linear-gradient(to right, #2563eb, #3b82f6); transition: transform 0.1s; }
         .btn-primary:active { transform: scale(0.98); }
-        .flag-icon { width: 24px; height: 16px; object-fit: cover; border-radius: 2px; }
+        .flag-icon { width: 24px; height: 24px; object-fit: contain; border-radius: 4px; background: #fff; padding: 2px; }
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
@@ -37,9 +37,9 @@
 
     <header class="max-w-7xl mx-auto mb-8 text-center">
         <h1 class="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-4">
-            Mundial FIFA 2026
+            Mundial de Clubes FIFA
         </h1>
-        <p class="text-gray-400 mb-2">Simulador Interactivo - 48 Selecciones</p>
+        <p class="text-gray-400 mb-2">Simulador Interactivo - 48 Clubes</p>
         <a href="torneo-libre.html" class="inline-block mb-4 px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-violet-700 to-fuchsia-700 hover:from-violet-600 hover:to-fuchsia-600 transition-all">
             🏆 Torneo Libre — eFootball 2026
         </a>
@@ -176,7 +176,7 @@
             <div id="champion-display" class="hidden mt-12 text-center pb-20">
                 <h2 class="text-3xl font-bold mb-4">¡EL CAMPEÓN DEL MUNDO!</h2>
                 <div class="inline-block p-8 rounded-2xl bg-gradient-to-b from-yellow-900/50 to-gray-900 border-2 border-yellow-500">
-                    <img id="champion-flag" src="" alt="Bandera" class="w-32 h-20 object-cover mx-auto mb-4 rounded-md shadow-lg">
+                    <img id="champion-flag" src="" alt="Escudo" class="w-28 h-28 object-contain bg-white p-2 mx-auto mb-4 rounded-md shadow-lg">
                     <h3 id="champion-name" class="text-4xl font-extrabold text-yellow-400"></h3>
                 </div>
             </div>
@@ -184,19 +184,22 @@
     </main>
 
     <script>
+        // Sorteo por bombos según ranking mundial de clubes: Bombo 1 = clubes de mayor
+        // peso (id acabado en 1) ... Bombo 4 = menor peso (id acabado en 4). Cada grupo
+        // recibe un club de cada bombo, evitando repetir país dentro del mismo grupo.
         const teamsData = [
-            { id: 'A1', name: 'México', flag: 'mx', group: 'A' }, { id: 'A2', name: 'Sudáfrica', flag: 'za', group: 'A' }, { id: 'A3', name: 'Corea del Sur', flag: 'kr', group: 'A' }, { id: 'A4', name: 'Chequia', flag: 'cz', group: 'A' },
-            { id: 'B1', name: 'Canadá', flag: 'ca', group: 'B' }, { id: 'B2', name: 'Bosnia y Herz.', flag: 'ba', group: 'B' }, { id: 'B3', name: 'Catar', flag: 'qa', group: 'B' }, { id: 'B4', name: 'Suiza', flag: 'ch', group: 'B' },
-            { id: 'C1', name: 'Brasil', flag: 'br', group: 'C' }, { id: 'C2', name: 'Marruecos', flag: 'ma', group: 'C' }, { id: 'C3', name: 'Haití', flag: 'ht', group: 'C' }, { id: 'C4', name: 'Escocia', flag: 'gb-sct', group: 'C' },
-            { id: 'D1', name: 'Estados Unidos', flag: 'us', group: 'D' }, { id: 'D2', name: 'Paraguay', flag: 'py', group: 'D' }, { id: 'D3', name: 'Australia', flag: 'au', group: 'D' }, { id: 'D4', name: 'Turquía', flag: 'tr', group: 'D' },
-            { id: 'E1', name: 'Alemania', flag: 'de', group: 'E' }, { id: 'E2', name: 'Curazao', flag: 'cw', group: 'E' }, { id: 'E3', name: 'Costa de Marfil', flag: 'ci', group: 'E' }, { id: 'E4', name: 'Ecuador', flag: 'ec', group: 'E' },
-            { id: 'F1', name: 'Países Bajos', flag: 'nl', group: 'F' }, { id: 'F2', name: 'Japón', flag: 'jp', group: 'F' }, { id: 'F3', name: 'Suecia', flag: 'se', group: 'F' }, { id: 'F4', name: 'Túnez', flag: 'tn', group: 'F' },
-            { id: 'G1', name: 'Bélgica', flag: 'be', group: 'G' }, { id: 'G2', name: 'Egipto', flag: 'eg', group: 'G' }, { id: 'G3', name: 'Irán', flag: 'ir', group: 'G' }, { id: 'G4', name: 'Nueva Zelanda', flag: 'nz', group: 'G' },
-            { id: 'H1', name: 'España', flag: 'es', group: 'H' }, { id: 'H2', name: 'Cabo Verde', flag: 'cv', group: 'H' }, { id: 'H3', name: 'Arabia Saudita', flag: 'sa', group: 'H' }, { id: 'H4', name: 'Uruguay', flag: 'uy', group: 'H' },
-            { id: 'I1', name: 'Francia', flag: 'fr', group: 'I' }, { id: 'I2', name: 'Senegal', flag: 'sn', group: 'I' }, { id: 'I3', name: 'Irak', flag: 'iq', group: 'I' }, { id: 'I4', name: 'Noruega', flag: 'no', group: 'I' },
-            { id: 'J1', name: 'Argentina', flag: 'ar', group: 'J' }, { id: 'J2', name: 'Argelia', flag: 'dz', group: 'J' }, { id: 'J3', name: 'Austria', flag: 'at', group: 'J' }, { id: 'J4', name: 'Jordania', flag: 'jo', group: 'J' },
-            { id: 'K1', name: 'Portugal', flag: 'pt', group: 'K' }, { id: 'K2', name: 'RD Congo', flag: 'cd', group: 'K' }, { id: 'K3', name: 'Uzbekistán', flag: 'uz', group: 'K' }, { id: 'K4', name: 'Colombia', flag: 'co', group: 'K' },
-            { id: 'L1', name: 'Inglaterra', flag: 'gb-eng', group: 'L' }, { id: 'L2', name: 'Croacia', flag: 'hr', group: 'L' }, { id: 'L3', name: 'Ghana', flag: 'gh', group: 'L' }, { id: 'L4', name: 'Panamá', flag: 'pa', group: 'L' }
+            { id: 'A1', name: 'Real Madrid', flag: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg', group: 'A' }, { id: 'A2', name: 'Mónaco', flag: 'https://upload.wikimedia.org/wikipedia/en/c/cf/LogoASMonacoFC2021.svg', group: 'A' }, { id: 'A3', name: 'Fenerbahçe', flag: 'https://upload.wikimedia.org/wikipedia/en/3/39/Fenerbah%C3%A7e.svg', group: 'A' }, { id: 'A4', name: 'Al Nassr', flag: 'https://upload.wikimedia.org/wikipedia/en/a/ac/Al_Nassr_FC_Logo.svg', group: 'A' },
+            { id: 'B1', name: 'Barcelona', flag: 'https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg', group: 'B' }, { id: 'B2', name: 'Napoli', flag: 'https://upload.wikimedia.org/wikipedia/commons/e/ed/SSC_Napoli_2007.svg', group: 'B' }, { id: 'B3', name: 'Al Hilal', flag: 'https://upload.wikimedia.org/wikipedia/commons/5/55/Al_Hilal_SFC_Logo.svg', group: 'B' }, { id: 'B4', name: 'Rosario Central', flag: 'https://upload.wikimedia.org/wikipedia/en/c/ce/Rosario_Central_logo.svg', group: 'B' },
+            { id: 'C1', name: 'Atlético de Madrid', flag: 'https://upload.wikimedia.org/wikipedia/en/f/f9/Atletico_Madrid_Logo_2024.svg', group: 'C' }, { id: 'C2', name: 'Bayer Leverkusen', flag: 'https://upload.wikimedia.org/wikipedia/en/5/59/Bayer_04_Leverkusen_logo.svg', group: 'C' }, { id: 'C3', name: 'Marsella', flag: 'https://upload.wikimedia.org/wikipedia/commons/d/d8/Olympique_Marseille_logo.svg', group: 'C' }, { id: 'C4', name: 'Santos', flag: 'https://upload.wikimedia.org/wikipedia/en/3/3b/Santos_FC_logo.svg', group: 'C' },
+            { id: 'D1', name: 'PSG', flag: 'https://upload.wikimedia.org/wikipedia/en/a/a7/Paris_Saint-Germain_F.C..svg', group: 'D' }, { id: 'D2', name: 'Tottenham', flag: 'https://upload.wikimedia.org/wikipedia/en/b/b4/Tottenham_Hotspur.svg', group: 'D' }, { id: 'D3', name: 'Betis', flag: 'https://www.google.com/s2/favicons?domain=realbetisbalompie.es&sz=128', group: 'D' }, { id: 'D4', name: 'Vasco da Gama', flag: 'https://upload.wikimedia.org/wikipedia/en/1/14/Vasco_da_Gama_logo.svg', group: 'D' },
+            { id: 'E1', name: 'Milan', flag: 'https://upload.wikimedia.org/wikipedia/commons/d/d0/Logo_of_AC_Milan.svg', group: 'E' }, { id: 'E2', name: 'Porto', flag: 'https://upload.wikimedia.org/wikipedia/en/f/f1/FC_Porto.svg', group: 'E' }, { id: 'E3', name: 'River Plate', flag: 'https://upload.wikimedia.org/wikipedia/commons/3/39/River_Plate_logo.svg', group: 'E' }, { id: 'E4', name: 'Chivas', flag: 'https://upload.wikimedia.org/wikipedia/en/1/13/CD_Guadalajara_logo.svg', group: 'E' },
+            { id: 'F1', name: 'Inter de Milán', flag: 'https://upload.wikimedia.org/wikipedia/commons/0/05/FC_Internazionale_Milano_2021.svg', group: 'F' }, { id: 'F2', name: 'Benfica', flag: 'https://upload.wikimedia.org/wikipedia/en/a/a2/SL_Benfica_logo.svg', group: 'F' }, { id: 'F3', name: 'Internacional', flag: 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Escudo_do_Sport_Club_Internacional.svg', group: 'F' }, { id: 'F4', name: 'Pumas UNAM', flag: 'https://upload.wikimedia.org/wikipedia/en/b/b7/Club_Universidad_Nacional_logo.svg', group: 'F' },
+            { id: 'G1', name: 'Bayern Múnich', flag: 'https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_M%C3%BCnchen_logo_%282017%29.svg', group: 'G' }, { id: 'G2', name: 'Anderlecht', flag: 'https://www.google.com/s2/favicons?domain=rsca.be&sz=128', group: 'G' }, { id: 'G3', name: 'Tigres UANL', flag: 'https://upload.wikimedia.org/wikipedia/en/8/82/Tigres_UANL_logo_%28crest%29.svg', group: 'G' }, { id: 'G4', name: 'LA Galaxy', flag: 'https://upload.wikimedia.org/wikipedia/commons/3/34/LA_Galaxy.svg', group: 'G' },
+            { id: 'H1', name: 'Borussia Dortmund', flag: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Borussia_Dortmund_logo.svg', group: 'H' }, { id: 'H2', name: 'Celtic', flag: 'https://upload.wikimedia.org/wikipedia/en/3/35/Celtic_FC.svg', group: 'H' }, { id: 'H3', name: 'Inter Miami', flag: 'https://upload.wikimedia.org/wikipedia/en/5/5c/Inter_Miami_CF_logo.svg', group: 'H' }, { id: 'H4', name: 'CF Montréal', flag: 'https://upload.wikimedia.org/wikipedia/en/0/04/CFMontreal.svg', group: 'H' },
+            { id: 'I1', name: 'Manchester City', flag: 'https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg', group: 'I' }, { id: 'I2', name: 'Galatasaray', flag: 'https://upload.wikimedia.org/wikipedia/commons/1/15/Galatasaray_SK.svg', group: 'I' }, { id: 'I3', name: 'Colo Colo', flag: 'https://upload.wikimedia.org/wikipedia/en/b/be/Colo-Colo.svg', group: 'I' }, { id: 'I4', name: 'Shanghai Port', flag: 'https://upload.wikimedia.org/wikipedia/en/7/7a/Shanghai_Port_F.C.svg', group: 'I' },
+            { id: 'J1', name: 'Liverpool', flag: 'https://upload.wikimedia.org/wikipedia/en/0/0c/Liverpool_FC.svg', group: 'J' }, { id: 'J2', name: 'Boca Juniors', flag: 'https://upload.wikimedia.org/wikipedia/commons/4/41/CABJ70.png', group: 'J' }, { id: 'J3', name: 'Vissel Kobe', flag: 'https://upload.wikimedia.org/wikipedia/commons/8/8a/Vissel_Kobe_logo.svg', group: 'J' }, { id: 'J4', name: 'København', flag: 'https://upload.wikimedia.org/wikipedia/en/2/26/FC_Copenhagen_logo.svg', group: 'J' },
+            { id: 'K1', name: 'Arsenal', flag: 'https://upload.wikimedia.org/wikipedia/en/5/53/Arsenal_FC.svg', group: 'K' }, { id: 'K2', name: 'Flamengo', flag: 'https://upload.wikimedia.org/wikipedia/commons/9/91/CR_Flamengo.svg', group: 'K' }, { id: 'K3', name: 'PSV', flag: 'https://upload.wikimedia.org/wikipedia/en/0/05/PSV_Eindhoven.svg', group: 'K' }, { id: 'K4', name: 'Ulsan Hyundai', flag: 'https://upload.wikimedia.org/wikipedia/en/b/b5/Ulsan_Hyundai_FC.svg', group: 'K' },
+            { id: 'L1', name: 'Chelsea', flag: 'https://upload.wikimedia.org/wikipedia/en/c/cc/Chelsea_FC.svg', group: 'L' }, { id: 'L2', name: 'América', flag: 'https://upload.wikimedia.org/wikipedia/en/c/c1/Club_Am%C3%A9rica_crest.svg', group: 'L' }, { id: 'L3', name: 'LA FC', flag: 'https://upload.wikimedia.org/wikipedia/commons/8/86/Los_Angeles_Football_Club.svg', group: 'L' }, { id: 'L4', name: 'Atlético Nacional', flag: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/Atletico_Nacional_Logo.svg', group: 'L' }
         ];
 
         let state = {
@@ -399,8 +402,8 @@
         // UI & LÓGICA DEL SIMULADOR
         // ==========================================
 
-        function getFlagUrl(code) {
-            return `https://flagcdn.com/w40/${code}.png`;
+        function getFlagUrl(logoUrl) {
+            return logoUrl;
         }
 
         function getTeam(id) {
@@ -544,7 +547,7 @@
                     <tr class="${rowClass} border-b border-gray-800 last:border-0">
                         <td class="text-left py-1 flex items-center gap-1 font-semibold">
                             <span class="w-3">${i+1}.</span>
-                            <img src="${getFlagUrl(t.flag)}" class="w-4 h-3"> ${t.name}
+                            <img src="${getFlagUrl(t.flag)}" class="w-4 h-4 object-contain bg-white rounded-sm p-0.5"> ${t.name}
                         </td>
                         <td class="font-bold">${t.pts}</td>
                         <td>${t.gf}</td>
